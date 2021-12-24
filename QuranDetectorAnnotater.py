@@ -10,7 +10,7 @@ import json
 import os
 
 debug = False   
-globalDelimeters= '#|،|\.|{|}|\n|؟|!|\(|\)|﴿|﴾|۞|۝|\*|-|\+|\:'
+globalDelimeters= '#|،|\.|{|}|\n|؟|!|\(|\)|﴿|﴾|۞|۝|\*|-|\+|\:|…'
 
 #------------------------------------
 #General Utils
@@ -781,16 +781,19 @@ class qMatcherAnnotater():
         return result, errs
 
     def isValidRec(self, r, allowedErrPers=0.25, minMatch=3):
-        # allowedStopTable is a dictionary with the key as the number of words and the value is the
-        # allowable number of stopword there. So for example, if a verse has 4 words, according to the
-        # default, only 1 of those is allowed to be a stop word, if it has 3, then it cant have any
+        '''
+        :param r: a match record
+        :param allowedErrPers: is the allowable percentage of words marked as incorrect with respect to the overall number of words in a detected verse.
+        :param minMatch: the minimum number of words that should match an incomplete verse. Any number less that 3 will be ignored but a higher number is acceptable
+        :return: a boolean to indicate whether the input record is valid or not
+        '''
 
         l = r.getLen()
         if r.getLen() < minMatch:
             # print("Checkpoing 1:" , r.getLen(), r)
             return False
 
-        if r.getErrNum() >= allowedErrPers * l:
+        if r.getErrNum() > allowedErrPers * l:
             return False
         if len(r.verses) == 1:
             if r.verses[0] in self.stopVerses:
@@ -799,11 +802,10 @@ class qMatcherAnnotater():
             if v_len < 6:
                 allowedFactor = (v_len-3) / v_len
                 if self.getStopPercentage(r.verses[0]) > allowedFactor:
-                    # rint("checkpoint 3:" , len(r.verses[0].split()),  self.getStopPercentage(r.verses[0]) )
                     return False
         return True
         
-    def annotateTxt(self, inText, findErrs= True, findMissing = True, d = globalDelimeters):
+    def annotateTxt(self, inText, findErrs= True, findMissing = True, allowedErrPers=0.25, minMatch=3, d = globalDelimeters):
 
         inText = padSymbols(inText)
         recs, errs = self.matchVersesInText(inText, self.all, findErrs, findMissing, d)
@@ -818,7 +820,7 @@ class qMatcherAnnotater():
         for v in recs:
             matches = recs[v]
             for r in matches:
-                if not self.isValidRec(r):
+                if not self.isValidRec(r, allowedErrPers, minMatch ):
                     continue
                 cText = r.getOrigStr(self.qOrig, self.qNorm)
                 currLoc = (r.startInText,r.endInText)
@@ -837,17 +839,16 @@ class qMatcherAnnotater():
         result = result.strip() +  " ".join(allTerms[replacmentIndex:])
         return result
 
-    def matchAll(self, inText, findErr=True, findMissing=True, d=globalDelimeters, minMatch = 3, allowedErrPers = 0.25,  
-                 return_json=False):
+    def matchAll(self, inText, findErr=True, findMissing=True,allowedErrPers=0.25, minMatch=3,  return_json=False, d=globalDelimeters):
 
         inText = padSymbols(inText)
-        recs, errs = self.matchVersesInText(inText, self.all, findErr, findMissing)
+        recs, errs = self.matchVersesInText(inText, self.all, findErr, findMissing, d)
         result = []
 
         for v in recs:
             matches = recs[v]
             for r in matches:
-                if not self.isValidRec(r):
+                if not self.isValidRec(r, allowedErrPers, minMatch):
                     continue
                 result.append(r.getStructured(json_format =return_json ))
 
